@@ -1,0 +1,64 @@
+name: Build SaedniAI APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Android project
+        run: |
+          mkdir -p android-project
+          unzip -o SaedniAI_Android_Project.zip -d android-project
+
+      - name: Find project directory
+        run: |
+          echo "Project contents:"
+          find android-project -maxdepth 3 -type f | head -100
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Make Gradle executable
+        run: |
+          find android-project -name gradlew -exec chmod +x {} \;
+
+      - name: Build APK
+        working-directory: android-project
+        run: |
+          GRADLEW=$(find . -name gradlew -type f | head -1)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew not found"
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$GRADLEW")
+          cd "$PROJECT_DIR"
+
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Find APK
+        run: |
+          echo "Searching for APK files..."
+          find android-project -type f -name "*.apk" -print
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaedniAI-APK
+          path: android-project/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
